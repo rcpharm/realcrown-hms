@@ -22,12 +22,9 @@ if st.button("Register"):
     if name and email and password and role:
         try:
             # Step 1: Check invite list
-            invites_response = supabase.table("staff_invites").select("email").execute()
-            if invites_response.error:
-                st.error(f"❌ Failed to fetch invite list: {invites_response.error.message}")
-                st.stop()
+            invites = supabase.table("staff_invites").select("email").execute().data
+            invited_emails = [i["email"] for i in invites]
 
-            invited_emails = [i["email"] for i in invites_response.data]
             if email not in invited_emails:
                 st.warning("⚠️ This email is not on the invite list.")
                 st.stop()
@@ -38,11 +35,11 @@ if st.button("Register"):
                 "password": password
             })
 
-            if auth_response.user:
+            if auth_response and auth_response.user:
                 uid = auth_response.user.id
 
                 # Step 3: Insert into staff table
-                insert_response = supabase.table("staff").insert({
+                staff_payload = {
                     "id": str(uuid.uuid4()),
                     "full_name": name,
                     "email": email,
@@ -51,14 +48,15 @@ if st.button("Register"):
                     "role": role,
                     "status": status,
                     "uid": uid
-                }).execute()
+                }
 
-                if insert_response.error is None:
+                insert_response = supabase.table("staff").insert(staff_payload).execute()
+                if insert_response and insert_response.data:
                     st.success(f"✅ {name} registered successfully as `{role}`.")
                     # Step 4: Remove invite
                     supabase.table("staff_invites").delete().eq("email", email).execute()
                 else:
-                    st.error(f"❌ Failed to insert staff profile: {insert_response.error.message}")
+                    st.error("❌ Failed to insert staff profile.")
             else:
                 st.error("❌ Supabase Auth registration failed.")
         except Exception as e:
