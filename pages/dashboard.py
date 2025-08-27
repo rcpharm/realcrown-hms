@@ -2,18 +2,20 @@ import streamlit as st
 
 st.title("Staff Dashboard")
 
-# Check if user is logged in
+# ✅ Check if user is logged in
 if "user" not in st.session_state:
     st.warning("You must log in first.")
     st.stop()
 
 user = st.session_state["user"]
-role = user["role"]
-name = user["name"]
+
+# ✅ Safely extract name and role
+name = user.get("name", "Unknown")
+role = user.get("role", "guest")
 
 st.success(f"Welcome, {name} ({role})")
 
-# Role-based dashboard content
+# ✅ Role-based dashboard content
 if role == "admin":
     st.subheader("Admin Panel")
     st.write("Manage staff accounts, configure system settings, and view reports.")
@@ -61,4 +63,3 @@ elif role == "accountant":
 else:
     st.subheader("General Access")
     st.write("Your role does not have specific dashboard features yet.")
- 
