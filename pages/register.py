@@ -22,9 +22,12 @@ if st.button("Register"):
     if name and email and password and role:
         try:
             # Step 1: Check invite list
-            invites = supabase.table("staff_invites").select("email").execute().data
-            invited_emails = [i["email"] for i in invites]
+            invites_response = supabase.table("staff_invites").select("email").execute()
+            if invites_response.error:
+                st.error(f"❌ Failed to fetch invite list: {invites_response.error.message}")
+                st.stop()
 
+            invited_emails = [i["email"] for i in invites_response.data]
             if email not in invited_emails:
                 st.warning("⚠️ This email is not on the invite list.")
                 st.stop()
@@ -38,27 +41,27 @@ if st.button("Register"):
             if auth_response.user:
                 uid = auth_response.user.id
 
-                # Step 3: Insert into staff table (no photo)
-                staff_response = supabase.table("staff").insert({
+                # Step 3: Insert into staff table
+                insert_response = supabase.table("staff").insert({
+                    "id": str(uuid.uuid4()),
                     "full_name": name,
                     "email": email,
                     "phone_number": phone,
                     "gender": gender,
                     "role": role,
                     "status": status,
-                    "uid": uid,
+                    "uid": uid
                 }).execute()
 
-                if staff_response.status_code == 201:
+                if insert_response.error is None:
                     st.success(f"✅ {name} registered successfully as `{role}`.")
-                    # Optional: Remove invite after use
+                    # Step 4: Remove invite
                     supabase.table("staff_invites").delete().eq("email", email).execute()
                 else:
-                    st.error("❌ Failed to insert staff profile.")
+                    st.error(f"❌ Failed to insert staff profile: {insert_response.error.message}")
             else:
                 st.error("❌ Supabase Auth registration failed.")
         except Exception as e:
             st.error(f"❌ Registration failed: {e}")
     else:
         st.warning("⚠️ Please fill in all required fields.")
-
