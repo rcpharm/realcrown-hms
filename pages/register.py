@@ -47,7 +47,6 @@ if st.button("Register"):
                     "role": role,
                     "status": status,
                     "uid": uid,
-                    "photo_url": None  # Optional field left blank
                 }).execute()
 
                 if staff_response.status_code == 201:
@@ -62,3 +61,4 @@ if st.button("Register"):
             st.error(f"❌ Registration failed: {e}")
     else:
         st.warning("⚠️ Please fill in all required fields.")
+
