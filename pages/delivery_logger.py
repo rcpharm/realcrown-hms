@@ -37,7 +37,11 @@ def get_patient_name(visit_id):
 st.title("👶 Maternity Delivery Logger")
 
 with st.form("delivery_form"):
-    visit = st.selectbox("Select Visit", visits, format_func=lambda v: f"{get_patient_name(v['id'])]} ({v['id'][:8]})")
+    visit = st.selectbox(
+        "Select Visit",
+        visits,
+        format_func=lambda v: f"{get_patient_name(v['id'])} ({v['id'][:8]})"
+    )
     staff_member = st.selectbox("Delivered By", staff, format_func=lambda x: x["full_name"])
     delivery_date = st.date_input("Delivery Date", value=date.today())
     delivery_type = st.selectbox("Delivery Type", ["normal", "c-section", "assisted"])
