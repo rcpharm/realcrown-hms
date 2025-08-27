@@ -29,7 +29,13 @@ if st.button("Register"):
                 st.warning("⚠️ This email is not on the invite list.")
                 st.stop()
 
-            # Step 2: Create Supabase Auth user
+            # Step 2: Check for existing staff record
+            existing_staff = supabase.table("staff").select("id").eq("email", email).execute().data
+            if existing_staff:
+                st.warning("⚠️ This email is already registered in the staff table.")
+                st.stop()
+
+            # Step 3: Create Supabase Auth user
             auth_response = supabase.auth.sign_up({
                 "email": email,
                 "password": password
@@ -38,7 +44,7 @@ if st.button("Register"):
             if auth_response and auth_response.user:
                 uid = auth_response.user.id
 
-                # Step 3: Insert into staff table
+                # Step 4: Insert into staff table
                 staff_payload = {
                     "id": str(uuid.uuid4()),
                     "full_name": name,
@@ -53,7 +59,7 @@ if st.button("Register"):
                 insert_response = supabase.table("staff").insert(staff_payload).execute()
                 if insert_response and insert_response.data:
                     st.success(f"✅ {name} registered successfully as `{role}`.")
-                    # Step 4: Remove invite
+                    # Step 5: Remove invite
                     supabase.table("staff_invites").delete().eq("email", email).execute()
                 else:
                     st.error("❌ Failed to insert staff profile.")
