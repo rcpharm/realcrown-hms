@@ -45,7 +45,8 @@ if st.button("Register"):
                 if photo:
                     file_ext = photo.name.split(".")[-1]
                     file_name = f"{uuid.uuid4()}.{file_ext}"
-                    upload_response = supabase.storage.from_("staff_photos").upload(file_name, photo)
+                    file_bytes = photo.read()  # Convert UploadedFile to bytes
+                    upload_response = supabase.storage.from_("staff_photos").upload(file_name, file_bytes)
                     if upload_response:
                         photo_url = supabase.storage.from_("staff_photos").get_public_url(file_name)
 
@@ -75,3 +76,4 @@ if st.button("Register"):
             st.error(f"Registration failed: {e}")
     else:
         st.warning("Please fill in all required fields.")
+
