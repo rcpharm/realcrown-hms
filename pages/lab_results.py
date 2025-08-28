@@ -14,10 +14,17 @@ st.set_page_config(page_title="Log Lab Results", layout="wide")
 st.title("🧬 Log Lab Results")
 
 # --- Optional: derive staff ID from session if available ---
-staff_id = (st.session_state.get("user") or {}).get("id") or None
+staff_id = (st.session_state.get("user") or {}).get("id")
 
 # --- Fetch pending lab requests ---
-pending_response = supabase.table("lab_requests").select("*").eq("status", "pending").order("created_at", desc=True).execute()
+pending_response = (
+    supabase
+    .table("lab_requests")
+    .select("*")
+    .eq("status", "pending")
+    .execute()
+)
+
 pending_data = pending_response.data or []
 
 if not pending_data:
@@ -42,6 +49,7 @@ else:
                         "logged_by": staff_id,  # Optional attribution
                         "timestamp": datetime.utcnow().isoformat()
                     }
+
                     result_response = supabase.table("lab_results").insert(result_payload).execute()
 
                     # Update request status
