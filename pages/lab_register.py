@@ -10,10 +10,17 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+st.set_page_config(page_title="Lab Register", layout="wide")
 st.title("📋 Lab Register Dashboard")
 
-# --- Get staff ID for access control ---
-staff_id = st.query_params.get("staff_id") or st.session_state.get("staff_id")
+# --- Robust staff ID retrieval ---
+staff_id = (
+    st.query_params.get("staff_id") or
+    st.session_state.get("staff_id") or
+    (st.session_state.get("user") or {}).get("id") or
+    (st.session_state.get("user") or {}).get("uid")
+)
+
 if not staff_id:
     st.warning("Staff ID missing. Please log in.")
     st.stop()
@@ -29,23 +36,23 @@ if status_filter != "all":
 if test_type_filter:
     query = query.ilike("test_type", f"%{test_type_filter}%")
 requests_response = query.execute()
-requests_df = pd.DataFrame(requests_response.data) if requests_response.status_code == 200 else pd.DataFrame()
+requests_df = pd.DataFrame(requests_response.data or [])
 
 # --- Fetch lab results ---
 results_response = supabase.table("lab_results").select("*").execute()
-results_df = pd.DataFrame(results_response.data) if results_response.status_code == 200 else pd.DataFrame()
+results_df = pd.DataFrame(results_response.data or [])
 
 # --- Fetch patients ---
 patients_response = supabase.table("patients").select("id, full_name").execute()
-patients_df = pd.DataFrame(patients_response.data) if patients_response.status_code == 200 else pd.DataFrame()
+patients_df = pd.DataFrame(patients_response.data or [])
 
-# --- Fetch visits with staff_id ---
+# --- Fetch visits ---
 visits_response = supabase.table("visits").select("id, staff_id").execute()
-visits_df = pd.DataFrame(visits_response.data) if visits_response.status_code == 200 else pd.DataFrame()
+visits_df = pd.DataFrame(visits_response.data or [])
 
 # --- Fetch staff names ---
 staff_response = supabase.table("staff").select("id, full_name").execute()
-staff_df = pd.DataFrame(staff_response.data) if staff_response.status_code == 200 else pd.DataFrame()
+staff_df = pd.DataFrame(staff_response.data or [])
 
 # --- Merge all data ---
 merged_df = (
@@ -99,43 +106,42 @@ if selected:
         "Logged By": record.get("logged_by", "—"),
         "Timestamp": record.get("timestamp", "—")
     })
-    
-# --- Printable Summary ---
-st.markdown("---")
-st.subheader("🖨️ Printable Summary")
 
-def format_summary(record):
-    return f"""
-    ### 🧪 Lab Request Summary
+    # --- Printable Summary ---
+    st.markdown("---")
+    st.subheader("🖨️ Printable Summary")
 
-    **Test Type:** {record['test_type']}  
-    **Patient Name:** {record.get('full_name', '—')}  
-    **Visit ID:** {record['visit_id']}  
-    **Ordered By:** {record.get('full_name_staff', '—')}  
-    **Requested At:** {record['created_at']}  
-    **Status:** {record['status']}
+    def format_summary(record):
+        return f"""
+        ### 🧪 Lab Request Summary
 
-    ### 📊 Result Details
+        **Test Type:** {record['test_type']}  
+        **Patient Name:** {record.get('full_name', '—')}  
+        **Visit ID:** {record['visit_id']}  
+        **Ordered By:** {record.get('full_name_staff', '—')}  
+        **Requested At:** {record['created_at']}  
+        **Status:** {record['status']}
 
-    **Result Value:** {record.get('result_value', '—')}  
-    **Result Notes:** {record.get('result_notes', '—')}  
-    **Logged By:** {record.get('logged_by', '—')}  
-    **Timestamp:** {record.get('timestamp', '—')}
-    """
+        ### 📊 Result Details
 
-if selected:
+        **Result Value:** {record.get('result_value', '—')}  
+        **Result Notes:** {record.get('result_notes', '—')}  
+        **Logged By:** {record.get('logged_by', '—')}  
+        **Timestamp:** {record.get('timestamp', '—')}
+        """
+
     st.markdown(format_summary(record), unsafe_allow_html=True)
-    
-# --- Print Button ---
-st.markdown("""
-    <button onclick="window.print()" style="
-        background-color:#4CAF50;
-        color:white;
-        padding:10px 20px;
-        border:none;
-        border-radius:5px;
-        font-size:16px;
-        cursor:pointer;
-        margin-top:10px;
-    ">🖨️ Print This Summary</button>
-""", unsafe_allow_html=True)
+
+    # --- Print Button ---
+    st.markdown("""
+        <button onclick="window.print()" style="
+            background-color:#4CAF50;
+            color:white;
+            padding:10px 20px;
+            border:none;
+            border-radius:5px;
+            font-size:16px;
+            cursor:pointer;
+            margin-top:10px;
+        ">🖨️ Print This Summary</button>
+    """, unsafe_allow_html=True)
