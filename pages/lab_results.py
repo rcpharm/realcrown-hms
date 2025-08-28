@@ -10,29 +10,21 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.set_page_config(page_title="Log Lab Results", layout="wide")
 st.title("🧬 Log Lab Results")
 
-# --- Robust staff ID retrieval ---
-staff_id = (
-    st.query_params.get("staff_id") or
-    st.session_state.get("staff_id") or
-    (st.session_state.get("user") or {}).get("id") or
-    (st.session_state.get("user") or {}).get("uid")
-)
-
+# --- Get staff ID from query or session ---
+staff_id = st.query_params.get("staff_id") or st.session_state.get("staff_id")
 if not staff_id:
     st.warning("Staff ID missing. Please log in.")
     st.stop()
 
 # --- Fetch pending lab requests ---
-pending_response = supabase.table("lab_requests").select("*").eq("status", "pending").order("created_at", desc=True).execute()
-pending_data = pending_response.data or []
+pending = supabase.table("lab_requests").select("*").eq("status", "pending").order("created_at", desc=True).execute()
 
-if not pending_data:
+if pending.status_code != 200 or not pending.data:
     st.info("✅ No pending lab requests.")
 else:
-    for request in pending_data:
+    for request in pending.data:
         label = f"{request['test_type']} | Lab No: {request.get('lab_number', 'N/A')} | Patient ID: {request['patient_id']}"
         with st.expander(label):
             result_value = st.text_area("Result Value", key=f"result_{request['id']}")
@@ -41,24 +33,23 @@ else:
 
             if submit:
                 if not result_value.strip():
-                    st.warning("⚠️ Result value cannot be empty.")
+                    st.warning("Result value cannot be empty.")
                 else:
                     # Insert result
-                    result_payload = {
+                    result_response = supabase.table("lab_results").insert({
                         "lab_request_id": request["id"],
                         "result_value": result_value,
                         "result_notes": result_notes,
                         "logged_by": staff_id,
                         "timestamp": datetime.utcnow().isoformat()
-                    }
-                    result_response = supabase.table("lab_results").insert(result_payload).execute()
+                    }).execute()
 
                     # Update request status
                     update_response = supabase.table("lab_requests").update({
                         "status": "completed"
                     }).eq("id", request["id"]).execute()
 
-                    if result_response.data and update_response.data:
+                    if result_response.status_code == 201 and update_response.status_code == 200:
                         st.success("✅ Result logged and request marked as completed.")
                     else:
                         st.error("❌ Failed to log result. Please try again.")
